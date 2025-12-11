@@ -1,0 +1,87 @@
+# Dockerfile
+# -------------
+# Save as: Dockerfile.sentinel-translator
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY sentinel-translator.js .
+COPY .env .
+
+CMD ["node", "sentinel-translator.js"]
+
+# -------------
+# Docker Compose Integration
+# -------------
+# Add this to your compose.yaml:
+
+services:
+  # ... your existing services (primary, replicas, sentinels) ...
+
+  sentinel-translator:
+    build:
+      context: .
+      dockerfile: Dockerfile.sentinel-translator
+    container_name: sentinel-translator
+    ports:
+      - "${DOCKER_REDIS_SENTINEL_PORTS}:26379"  # Maps first sentinel port
+    environment:
+      - LISTEN_PORT=26379
+      - SENTINEL_HOST=sentinel-1
+      - SENTINEL_PORT=${REDIS_SENTINEL_PORT}
+      - ENV_FILE=/app/.env
+    volumes:
+      - ./.env:/app/.env:ro
+    networks:
+      - redis-network
+    depends_on:
+      - sentinel-1
+    restart: unless-stopped
+
+networks:
+  redis-network:
+    driver: bridge
+
+# -------------
+# Usage
+# -------------
+# 1. Save sentinel-translator.js to your project
+# 2. Create Dockerfile.sentinel-translator
+# 3. Add the service to your compose.yaml
+# 4. Run: docker-compose up -d
+#
+# External clients connect to:
+#   - localhost:26379 (translator) instead of sentinel directly
+#
+# The translator will:
+#   - Forward commands to sentinel-1
+#   - Translate internal addresses (primary:6379) to external (localhost:6379)
+#   - Return translated responses to clients
+
+# -------------
+# Example Client Usage (Node.js)
+# -------------
+# const Redis = require('ioredis');
+#
+# const sentinel = new Redis({
+#   sentinels: [{ host: 'localhost', port: 26379 }],
+#   name: 'primary',
+#   sentinelPassword: process.env.REDIS_SENTINEL_PASSWORD
+# });
+#
+# sentinel.set('foo', 'bar');
+
+# -------------
+# Testing
+# -------------
+# Test with redis-cli:
+#   redis-cli -p 26379 SENTINEL get-master-addr-by-name primary
+#
+# Should return:
+#   1) "localhost"
+#   2) "6379"
+#
+# Instead of internal:
+#   1) "primary"
+#   2) "6379"
