@@ -12,4 +12,4 @@ RUN chmod +x /usr/local/bin/start-*.sh
 
 ENTRYPOINT ["/sbin/tini", "-g", "--", "docker-entrypoint.sh"]
 
-CMD ["start-primary.sh"]
+CMD ["start-redis.sh"]
