@@ -3,7 +3,7 @@ set -e
 
 # Export the default variables
 set -a
-. "${REDIS_CONFIG_DIR}/defaults.env"
+. "${REDIS_TEMPLATE_CONFIG_DIR}/defaults.env"
 set +a
 
 # Export the address variables (internal or external)
@@ -15,9 +15,22 @@ else
   export REDIS_ANNOUNCE_PORT="${REDIS_ANNOUNCE_PORT:-6379}"
 fi
 
+# Prepare the Redis working directory
+if [ -n "$COMPOSE_SERVICE_NAME" ]; then
+  PTR=$(nslookup $(hostname -i) | grep 'in-addr.arpa')
+  INDEX=$(echo $PTR | sed -n "s/.*${COMPOSE_SERVICE_NAME}-\([0-9]*\)\..*/\1/p")
+  if [ -n "$INDEX" ]; then
+    # Compose service instances must work in a subfolder
+    REDIS_PRIMARY_DIR="${REDIS_PRIMARY_DIR}${COMPOSE_SERVICE_NAME}__${INDEX}/"
+  fi
+fi
+mkdir -p "$REDIS_PRIMARY_DIR"
+cd "$REDIS_PRIMARY_DIR"
+
 # Substitute variables in the template and save the updated config file
-TARGET_CONFIG=${REDIS_CONFIG_FILE:-"/data/redis.conf"}
-envsubst < "${REDIS_CONFIG_DIR}/primary.conf" > "$TARGET_CONFIG"
+TARGET_CONFIG=${REDIS_CONFIG_FILE:-"/usr/local/etc/redis/redis.conf"}
+mkdir -p $(dirname "$TARGET_CONFIG")
+envsubst < "${REDIS_TEMPLATE_CONFIG_DIR}/primary.conf" > "$TARGET_CONFIG"
 
 # Remove config lines for empty password
 if [ -z "$REDIS_AUTH_PASSWORD" ]; then
@@ -26,6 +39,6 @@ if [ -z "$REDIS_AUTH_PASSWORD" ]; then
   sed -i '/^masteruser /d' "$TARGET_CONFIG"
 fi
 
-# Run Redis instance
-echo "${TARGET_CONFIG}:" && cat "$TARGET_CONFIG"
-exec redis-server "$TARGET_CONFIG" "$@"
+# Run the default entrypoint and start Redis instance
+echo "PWD: $PWD CONF: $TARGET_CONFIG CAT:" $(cat "$TARGET_CONFIG" | tr '\n' ' ')
+exec docker-entrypoint.sh redis-server "$TARGET_CONFIG" "$@"

@@ -12,12 +12,16 @@ x-template-replica: &template-replica
   command: ['start-replica.sh']
   depends_on:
     - primary
+  deploy:
+    replicas: ${DOCKER_REDIS_REPLICA_DEPLOY_COUNT:-1}
 
 x-template-sentinel: &template-sentinel
   <<: *template-redis
   command: ['start-sentinel.sh']
   depends_on:
     - primary
+  deploy:
+    replicas: ${DOCKER_REDIS_SENTINEL_DEPLOY_COUNT:-1}
 
 services:
   primary:
@@ -29,6 +33,7 @@ services:
     ports:
       - ${DOCKER_REDIS_PORT}:6379
     environment:
+      COMPOSE_SERVICE_NAME: primary
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_PORT}
     volumes:
       - primary:/data
@@ -40,6 +45,7 @@ services:
     ports:
       - ${DOCKER_REDIS_REPLICA_PORT_1}:6379
     environment:
+      COMPOSE_SERVICE_NAME: replica-1
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_REPLICA_PORT_1}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
     volumes:
@@ -51,6 +57,7 @@ services:
     ports:
       - ${DOCKER_REDIS_REPLICA_PORT_2}:6379
     environment:
+      COMPOSE_SERVICE_NAME: replica-2
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_REPLICA_PORT_2}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
     volumes:
@@ -63,6 +70,7 @@ services:
     ports:
       - ${DOCKER_REDIS_SENTINEL_PORT_1}:26379
     environment:
+      COMPOSE_SERVICE_NAME: sentinel-1
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_1}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
     volumes:
@@ -74,6 +82,7 @@ services:
     ports:
       - ${DOCKER_REDIS_SENTINEL_PORT_2}:26379
     environment:
+      COMPOSE_SERVICE_NAME: sentinel-2
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_2}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
     volumes:
@@ -85,6 +94,7 @@ services:
     ports:
       - ${DOCKER_REDIS_SENTINEL_PORT_3}:26379
     environment:
+      COMPOSE_SERVICE_NAME: sentinel-3
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_3}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
     volumes:
