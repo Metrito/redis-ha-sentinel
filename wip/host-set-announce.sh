@@ -18,13 +18,13 @@ for SERVICE in $SERVICES; do
       case $SERVICE in
         "redis-primary" | "redis-replica")
           REDIS_INTERNAL_PORT=${REDIS_PRIMARY_PORT:-6379}
-          PASS=${REDIS_PRIMARY_PASSWORD:+"-a $REDIS_PRIMARY_PASSWORD"}
+          PASS=${REDIS_AUTH_PASSWORD:+"-a $REDIS_AUTH_PASSWORD"}
           docker exec $CONTAINER redis-cli -p $REDIS_INTERNAL_PORT $PASS \
             CONFIG SET replica-announce-ip "$HOST" replica-announce-port "$PORT"
           ;;
         "redis-sentinel")
           REDIS_INTERNAL_PORT=${REDIS_SENTINEL_PORT:-26379}
-          PASS=${REDIS_SENTINEL_PASSWORD:+"-a $REDIS_SENTINEL_PASSWORD"}
+          PASS=${REDIS_AUTH_SENTINEL:+"-a $REDIS_AUTH_SENTINEL"}
           docker exec $CONTAINER redis-cli -p $REDIS_INTERNAL_PORT $PASS \
             SENTINEL CONFIG SET announce-ip "$HOST" announce-port "$PORT"
           ;;

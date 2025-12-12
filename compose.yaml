@@ -1,51 +1,157 @@
-networks:
-  default:
+x-template-redis: &template-redis
+  image: redis-ha
+  env_file: .env
+  networks:
+    - default
+  extra_hosts:
+    host.docker.internal: ${DOCKER_HOST_GATEWAY:-host-gateway}
+  restart: unless-stopped
+
+x-template-replica: &template-replica
+  <<: *template-redis
+  command: ['start-replica.sh']
+  depends_on:
+    - primary
+
+x-template-sentinel: &template-sentinel
+  <<: *template-redis
+  command: ['start-sentinel.sh']
+  depends_on:
+    - primary
 
 services:
-  redis-primary:
+  primary:
+    <<: *template-redis
     build:
       context: .
-    image: redis-ha
-    command: ["start-redis.sh"]
-    env_file: .env
+    command: ['start-redis.sh']
+    hostname: redis-primary
     ports:
       - ${DOCKER_REDIS_PORT}:6379
-    networks:
-      - default
-    extra_hosts:
-      host.docker.internal: ${DOCKER_REDIS_HOST_GATEWAY:-host-gateway}
-    restart: unless-stopped
-  redis-replica:
-    profiles: ["replica"]
-    depends_on:
-      - redis-primary
-    image: redis-ha
-    command: ["start-replica.sh"]
-    env_file: .env
+    environment:
+      REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_PORT}
+    volumes:
+      - primary:/data
+  # Redis replica instances
+  replica-1:
+    <<: *template-replica
+    profiles: ['replica-1']
+    hostname: redis-replica-1
     ports:
-      - ${DOCKER_REDIS_REPLICA_PORTS}:6379
-    networks:
-      - default
-    extra_hosts:
-      host.docker.internal: ${DOCKER_REDIS_HOST_GATEWAY:-host-gateway}
-    deploy:
-      mode: replicated
-      replicas: ${DOCKER_REDIS_REPLICA_COUNT:-2}
-    restart: unless-stopped
-  redis-sentinel:
-    profiles: ["sentinel"]
-    depends_on:
-      - redis-primary
-    image: redis-ha
-    command: ["start-sentinel.sh"]
-    env_file: .env
+      - ${DOCKER_REDIS_REPLICA_PORT_1}:6379
+    environment:
+      REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_REPLICA_PORT_1}
+      REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
+    volumes:
+      - replica-1:/data
+  replica-2:
+    <<: *template-replica
+    profiles: ['replica-2']
+    hostname: redis-replica-2
     ports:
-      - ${DOCKER_REDIS_SENTINEL_PORTS}:26379
-    networks:
-      - default
-    extra_hosts:
-      host.docker.internal: ${DOCKER_REDIS_HOST_GATEWAY:-host-gateway}
-    deploy:
-      mode: replicated
-      replicas: ${DOCKER_REDIS_SENTINEL_COUNT:-3}
-    restart: unless-stopped
+      - ${DOCKER_REDIS_REPLICA_PORT_2}:6379
+    environment:
+      REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_REPLICA_PORT_2}
+      REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
+    volumes:
+      - replica-2:/data
+  # Redis sentinel instances
+  sentinel-1:
+    <<: *template-sentinel
+    profiles: ['sentinel-1']
+    hostname: redis-sentinel-1
+    ports:
+      - ${DOCKER_REDIS_SENTINEL_PORT_1}:26379
+    environment:
+      REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_1}
+      REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
+    volumes:
+      - sentinel-1:/data
+  sentinel-2:
+    <<: *template-sentinel
+    profiles: ['sentinel-2']
+    hostname: redis-sentinel-2
+    ports:
+      - ${DOCKER_REDIS_SENTINEL_PORT_2}:26379
+    environment:
+      REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_2}
+      REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
+    volumes:
+      - sentinel-2:/data
+  sentinel-3:
+    <<: *template-sentinel
+    profiles: ['sentinel-3']
+    hostname: redis-sentinel-3
+    ports:
+      - ${DOCKER_REDIS_SENTINEL_PORT_3}:26379
+    environment:
+      REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_3}
+      REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
+    volumes:
+      - sentinel-3:/data
+
+  # primary:
+  #   build:
+  #     context: .
+  #   image: redis-ha
+  #   command: ['start-redis.sh']
+  #   env_file: .env
+  #   ports:
+  #     - ${DOCKER_REDIS_PORT}:6379
+  #   hostname: redis-primary
+  #   networks:
+  #     - default
+  #   extra_hosts:
+  #     host.docker.internal: ${DOCKER_REDIS_HOST_GATEWAY:-host-gateway}
+  #   volumes:
+  #     - primary:/data
+  #   restart: unless-stopped
+  # redis-replica:
+  #   profiles: ['replica']
+  #   depends_on:
+  #     - redis-primary
+  #   image: redis-ha
+  #   command: ['start-replica.sh']
+  #   env_file: .env
+  #   ports:
+  #     - ${DOCKER_REDIS_REPLICA_PORTS}:6379
+  #   networks:
+  #     - default
+  #   extra_hosts:
+  #     host.docker.internal: ${DOCKER_REDIS_HOST_GATEWAY:-host-gateway}
+  #   volumes:
+  #     - replica:/data
+  #   deploy:
+  #     mode: replicated
+  #     replicas: ${DOCKER_REDIS_REPLICA_COUNT:-2}
+  #   restart: unless-stopped
+  # redis-sentinel:
+  #   profiles: ['sentinel']
+  #   depends_on:
+  #     - redis-primary
+  #   image: redis-ha
+  #   command: ['start-sentinel.sh']
+  #   env_file: .env
+  #   ports:
+  #     - ${DOCKER_REDIS_SENTINEL_PORTS}:26379
+  #   networks:
+  #     - default
+  #   extra_hosts:
+  #     host.docker.internal: ${DOCKER_REDIS_HOST_GATEWAY:-host-gateway}
+  #   volumes:
+  #     - sentinel:/data
+  #   deploy:
+  #     mode: replicated
+  #     replicas: ${DOCKER_REDIS_SENTINEL_COUNT:-3}
+  #   restart: unless-stopped
+
+volumes:
+  primary:
+  replica-1:
+  replica-2:
+  sentinel-1:
+  sentinel-2:
+  sentinel-3:
+
+networks:
+  default:
