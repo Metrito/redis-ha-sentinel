@@ -28,17 +28,22 @@ mkdir -p "$REDIS_PRIMARY_DIR"
 cd "$REDIS_PRIMARY_DIR"
 
 # Substitute variables in the template and save the updated config file
-TARGET_CONFIG=${REDIS_CONFIG_FILE:-"/usr/local/etc/redis/redis.conf"}
-mkdir -p $(dirname "$TARGET_CONFIG")
-envsubst < "${REDIS_TEMPLATE_CONFIG_DIR}/primary.conf" > "$TARGET_CONFIG"
+CONFIG_DIR="/usr/local/etc/redis"
+CONFIG_FILE="${CONFIG_DIR}/redis.conf"
+mkdir -p "$CONFIG_DIR"
+envsubst < "${REDIS_TEMPLATE_CONFIG_DIR}/primary.conf" > "$CONFIG_FILE"
 
 # Remove config lines for empty password
 if [ -z "$REDIS_AUTH_PASSWORD" ]; then
-  sed -i '/^requirepass /d' "$TARGET_CONFIG"
-  sed -i '/^masterauth /d' "$TARGET_CONFIG"
-  sed -i '/^masteruser /d' "$TARGET_CONFIG"
+  sed -i '/^requirepass /d' "$CONFIG_FILE"
+  sed -i '/^masterauth /d' "$CONFIG_FILE"
+  sed -i '/^masteruser /d' "$CONFIG_FILE"
 fi
 
+# Make sure the config folder is owned and writable by redis
+ERR=$(chown -R redis "$CONFIG_DIR" 2>&1) || echo "ERROR on chown: $ERR"
+ERR=$(chmod -R u+rwX,g+X,o+X "$CONFIG_DIR" 2>&1) || echo "ERROR on chmod: $ERR"
+
 # Run the default entrypoint and start Redis instance
-echo "PWD: $PWD CONF: $TARGET_CONFIG CAT:" $(cat "$TARGET_CONFIG" | tr '\n' ' ')
-exec docker-entrypoint.sh redis-server "$TARGET_CONFIG" "$@"
+echo "PWD: $PWD CONF: $CONFIG_FILE CAT:" $(cat "$CONFIG_FILE" | tr '\n' ' ')
+exec docker-entrypoint.sh redis-server "$CONFIG_FILE" "$@"
