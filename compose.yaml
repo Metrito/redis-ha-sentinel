@@ -73,8 +73,6 @@ services:
       COMPOSE_SERVICE_NAME: sentinel-1
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_1}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
-    volumes:
-      - sentinel-1:/data
   sentinel-2:
     <<: *template-sentinel
     profiles: ['sentinel-2']
@@ -85,8 +83,6 @@ services:
       COMPOSE_SERVICE_NAME: sentinel-2
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_2}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
-    volumes:
-      - sentinel-2:/data
   sentinel-3:
     <<: *template-sentinel
     profiles: ['sentinel-3']
@@ -97,16 +93,11 @@ services:
       COMPOSE_SERVICE_NAME: sentinel-3
       REDIS_ANNOUNCE_PORT: ${DOCKER_REDIS_SENTINEL_PORT_3}
       REDIS_EXT_PRIMARY_PORT: ${DOCKER_REDIS_PORT}
-    volumes:
-      - sentinel-3:/data
 
 volumes:
   primary:
   replica-1:
   replica-2:
-  sentinel-1:
-  sentinel-2:
-  sentinel-3:
 
 networks:
   default:
