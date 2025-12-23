@@ -1,10 +1,12 @@
 #!/bin/sh
 set -e
 
-# Export the default variables
-set -a
-. "${REDIS_TEMPLATE_CONFIG_DIR}/defaults.env"
-set +a
+# Build the ACL password rule
+if [ -z "$REDIS_AUTH_PASSWORD" ]; then
+  export REDIS_ACL_RULE_PASSWORD="nopass"
+else
+  export REDIS_ACL_RULE_PASSWORD=">${REDIS_AUTH_PASSWORD}"
+fi
 
 # Export the address variables (internal or external)
 if [ -z "$REDIS_FLAG_EXT_ADDR" ]; then
@@ -14,6 +16,11 @@ else
   export REDIS_ANNOUNCE_IP="${REDIS_ANNOUNCE_IP:-host.docker.internal}"
   export REDIS_ANNOUNCE_PORT="${REDIS_ANNOUNCE_PORT:-6379}"
 fi
+
+# Export the other default variables
+set -a
+. "${REDIS_TEMPLATE_CONFIG_DIR}/defaults.env"
+set +a
 
 # Prepare the Redis working directory
 if [ -n "$COMPOSE_SERVICE_NAME" ]; then
@@ -32,13 +39,6 @@ CONFIG_DIR="/usr/local/etc/redis"
 CONFIG_FILE="${CONFIG_DIR}/redis.conf"
 mkdir -p "$CONFIG_DIR"
 envsubst < "${REDIS_TEMPLATE_CONFIG_DIR}/primary.conf" > "$CONFIG_FILE"
-
-# Remove config lines for empty password
-if [ -z "$REDIS_AUTH_PASSWORD" ]; then
-  sed -i '/^requirepass /d' "$CONFIG_FILE"
-  sed -i '/^masterauth /d' "$CONFIG_FILE"
-  sed -i '/^masteruser /d' "$CONFIG_FILE"
-fi
 
 # Make sure the config folder is owned and writable by redis
 ERR=$(chown -R redis "$CONFIG_DIR" 2>&1) || echo "ERROR on chown: $ERR"

@@ -24,7 +24,7 @@ for SERVICE in $SERVICES; do
           ;;
         "redis-sentinel")
           REDIS_INTERNAL_PORT=${REDIS_SENTINEL_PORT:-26379}
-          PASS=${REDIS_AUTH_SENTINEL:+"-a $REDIS_AUTH_SENTINEL"}
+          PASS=${REDIS_AUTH_SENTINEL_PASSWORD:+"-a $REDIS_AUTH_SENTINEL_PASSWORD"}
           docker exec $CONTAINER redis-cli -p $REDIS_INTERNAL_PORT $PASS \
             SENTINEL CONFIG SET announce-ip "$HOST" announce-port "$PORT"
           ;;

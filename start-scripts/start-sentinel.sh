@@ -1,10 +1,12 @@
 #!/bin/sh
 set -e
 
-# Export the default variables
-set -a
-. "${REDIS_TEMPLATE_CONFIG_DIR}/defaults.env"
-set +a
+# Build the ACL password rule
+if [ -z "$REDIS_AUTH_SENTINEL_PASSWORD" ]; then
+  export REDIS_ACL_RULE_PASSWORD="nopass"
+else
+  export REDIS_ACL_RULE_PASSWORD=">${REDIS_AUTH_SENTINEL_PASSWORD}"
+fi
 
 # Export the address variables (internal or external)
 if [ -z "$REDIS_FLAG_EXT_ADDR" ]; then
@@ -16,6 +18,11 @@ else
   export REDIS_SENTINEL_PRIMARY_HOST="${REDIS_EXT_PRIMARY_HOST:-$REDIS_ANNOUNCE_IP}"
   export REDIS_SENTINEL_PRIMARY_PORT="${REDIS_EXT_PRIMARY_PORT:-6379}"
 fi
+
+# Export the other default variables
+set -a
+. "${REDIS_TEMPLATE_CONFIG_DIR}/defaults.env"
+set +a
 
 # Prepare the Redis working directory
 if [ -n "$COMPOSE_SERVICE_NAME" ]; then
@@ -29,14 +36,20 @@ fi
 mkdir -p "$REDIS_SENTINEL_DIR"
 cd "$REDIS_SENTINEL_DIR"
 
-# Substitute variables in the template and save the updated config file
-CONFIG_FILE="sentinel.conf"
-envsubst < "${REDIS_TEMPLATE_CONFIG_DIR}/sentinel.conf" > "$CONFIG_FILE"
+# Substitute variables in the template
+CONTENT=$(envsubst < "${REDIS_TEMPLATE_CONFIG_DIR}/sentinel.conf")
 
-# Remove config lines for empty password
-if [ -z "$REDIS_AUTH_SENTINEL" ]; then
-  sed -i '/^requirepass /d' "$CONFIG_FILE"
+# Append the current sentinel instance ID, if the config file exists
+CONFIG_FILE="sentinel.conf"
+if [ -f "$CONFIG_FILE" ]; then
+  CURRENT_ID=$(grep '^sentinel myid ' "$CONFIG_FILE" || true)
+  if [ -n "$CURRENT_ID" ]; then
+    CONTENT=$(printf '%s\n%s' "$CONTENT" "$CURRENT_ID")
+  fi
 fi
+
+# Save the updated config file
+printf '%s\n' "$CONTENT" > "$CONFIG_FILE"
 
 # Remove config lines for empty primary password
 if [ -z "$REDIS_AUTH_PASSWORD" ]; then
