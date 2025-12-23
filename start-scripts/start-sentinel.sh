@@ -10,8 +10,8 @@ fi
 
 # Export the address variables (internal or external)
 if [ -z "$REDIS_FLAG_EXT_ADDR" ]; then
-  export REDIS_ANNOUNCE_IP='""'
-  export REDIS_ANNOUNCE_PORT=0
+  export REDIS_ANNOUNCE_IP="${REDIS_ANNOUNCE_IP:-\"\"}"
+  export REDIS_ANNOUNCE_PORT="${REDIS_ANNOUNCE_PORT:-0}"
 else
   export REDIS_ANNOUNCE_IP="${REDIS_ANNOUNCE_IP:-host.docker.internal}"
   export REDIS_ANNOUNCE_PORT="${REDIS_ANNOUNCE_PORT:-26379}"
